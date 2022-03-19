@@ -17,3 +17,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+
+// Route::resource('programs', App\Http\Controllers\API\ProgramController::class);
+Route::apiResource('programs', App\Http\Controllers\API\ProgramController::class);
+
+
+Route::group(['middleware' => 'auth.basic'], function () {
+    // Route::apiResource('books', BooksController::class);
+    // Route::resource('programs', App\Http\Controllers\API\ProgramController::class);
+});

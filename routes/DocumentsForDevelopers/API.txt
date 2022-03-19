@@ -1,0 +1,208 @@
+https://codelapan.com/post/how-to-create-a-crud-rest-api-in-laravel-8-with-sanctum
+
+Step 1: Add Sanctum Middleware
+
+ \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+We have to add sanctum middleware to api middleware group inside app/Http/Kernel.php file. This middleware is responsible for ensuring that every incoming request can be authenticated using a laravel session cookie, while still allowing requests from third parties to be authenticated using an API token.
+
+
+Step 2: Create Model & Migration
+
+php artisan make:model Program -m
+In this second step we need to create model and migration files for the Program. Run the artisan command as above to generate two Program files model and migration.
+
+---------------------------------
+protected $guarded = [];
+---------------------------------
+
+After successfully generating the model program file, now open the file and add the code above.
+
+---------------------------------
+ public function up()
+    {
+        Schema::create('programs', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->text('desc');
+            $table->timestamps();
+        });
+    }
+---------------------------------
+
+Next we need to setup the program migration file that was generated earlier. Open the file in the database/migrations/xxxx_xx_xx_xxxxxx_create_programs_table.php directory. Then in the up method, change the code to be like the example above. In this migrations program file, we only add two fields, namely name and desc.
+
+---------------------------------
+php artisan migrate
+---------------------------------
+
+
+If you have finished the migration file setup, now run the php artisan migrate command to migrate all migration files to the database.
+
+Step 3: Create API Resource
+php artisan make:resource ProgramResource
+To create or generate a resource class, we can use the artisan make:resource command as above. By default, the resource will be placed in the app/Http/Resources directory of our application or laravel project. The resource API will extend the Illuminate\Http\Resources\Json\JsonResource class.
+
+---------------------------------
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class ProgramResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return array|\Illuminate\Contracts\Support\Arrayable|\JsonSerializable
+     */
+    public function toArray($request)
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'desc' => $this->desc,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
+    }
+}
+---------------------------------
+
+
+After successfully generating the ProgramResource file, now open the file and change the existing code (precisely in the toArray method) to be like the code above.
+
+Each resource class defines a toArray method that returns an array attribute that must be converted to JSON when the resource is returned as a response from a route or controller. We can access the model properties directly from the $this variable. This is because the resource class will automatically proxy property and method access to the underlying model for easy access. Once a resource is defined, it can be returned from a route or controller.
+
+Step 4: Create Controller
+
+---------------------------------
+ php artisan make:controller API/ProgramController
+ ---------------------------------
+
+Then we need to create a new controller to create CRUD logic with Sanctum's REST API. Run the artisan command as above to create a ProgramController.php file in the app/Http/Controllers/API directory.
+
+
+---------------------------------
+<?php
+
+namespace App\Http\Controllers\API;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Validator;
+use App\Models\Program;
+use App\Http\Resources\ProgramResource;
+
+class ProgramController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function index()
+    {
+        $data = Program::latest()->get();
+        return response()->json([ProgramResource::collection($data), 'Programs fetched.']);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(),[
+            'name' => 'required|string|max:255',
+            'desc' => 'required'
+        ]);
+
+        if($validator->fails()){
+            return response()->json($validator->errors());       
+        }
+
+        $program = Program::create([
+            'name' => $request->name,
+            'desc' => $request->desc
+         ]);
+        
+        return response()->json(['Program created successfully.', new ProgramResource($program)]);
+    }
+
+    /**
+     * Display the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function show($id)
+    {
+        $program = Program::find($id);
+        if (is_null($program)) {
+            return response()->json('Data not found', 404); 
+        }
+        return response()->json([new ProgramResource($program)]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function update(Request $request, Program $program)
+    {
+        $validator = Validator::make($request->all(),[
+            'name' => 'required|string|max:255',
+            'desc' => 'required'
+        ]);
+
+        if($validator->fails()){
+            return response()->json($validator->errors());       
+        }
+
+        $program->name = $request->name;
+        $program->desc = $request->desc;
+        $program->save();
+        
+        return response()->json(['Program updated successfully.', new ProgramResource($program)]);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy(Program $program)
+    {
+        $program->delete();
+
+        return response()->json('Program deleted successfully');
+    }
+}
+---------------------------------
+
+
+After successfully generating the ProgramController.php file, now open the controller file and change the existing code to be like the code above. In this ProgramController.php file, we create index, store, update, show and destroy methods.
+
+A brief explanation of the four methods:
+
+Index, this method is used to create logic to display all data from table programs.
+Store, this method is used to add data from the request to the programs table. This method is also equipped with data validation.
+Show, serves to display detailed program data based on id.
+Update, serves to receive request data and update program data (based on id) with new request data.
+Delete, this method serves to delete program data based on the data id sent.
+
+Step 5: Create REST API Routes
+
+---------------------------------
+ Route::resource('programs', App\Http\Controllers\API\ProgramController::class);
+ ---------------------------------
+
+ 
